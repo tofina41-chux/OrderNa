@@ -1,0 +1,317 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="flex justify-end mb-6">
+    <button type="button" id="theme-toggle" onclick="toggleDarkMode()" class="px-4 py-2 rounded-lg bg-gray-200 dark:bg-slate-700 text-gray-800 dark:text-white text-xs font-bold transition shadow-sm">
+        Night Mode
+    </button>
+</div>
+
+<div class="relative w-full h-64 md:h-80 rounded-2xl overflow-hidden mb-10 shadow-lg border border-gray-100 dark:border-slate-800">
+    <div id="slider-container" class="flex w-full h-full transition-transform duration-700 ease-in-out">
+        {% for slide in slides %}
+            <div class="w-full h-full flex-shrink-0 bg-cover bg-center flex items-end p-8" style="background-image: linear-gradient(to top, rgba(0,0,0,0.8), rgba(0,0,0,0.2)), url('{{ slide.image.url }}');">
+                <h3 class="text-white text-2xl md:text-4xl font-extrabold">{{ slide.title }}</h3>
+            </div>
+        {% empty %}
+            <div class="w-full h-full flex-shrink-0 bg-cover bg-center flex items-end p-8" style="background-image: linear-gradient(to top, rgba(0,0,0,0.8), rgba(0,0,0,0.2)), url('https://images.unsplash.com/photo-1544025162-d76694265947?q=80&w=1200&auto=format&fit=crop');">
+                <h3 class="text-white text-2xl md:text-4xl font-extrabold">Welcome to OrderNa</h3>
+            </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    
+    <div class="lg:col-span-2 space-y-12">
+        {% for category in categories %}
+        <div>
+            <div class="flex items-center justify-between border-b border-gray-200 dark:border-slate-700 pb-3 mb-6">
+                <h2 class="text-2xl font-black text-gray-800 dark:text-white uppercase tracking-wide">{{ category.name }}</h2>
+                <span class="bg-orange-100 text-orange-600 dark:bg-orange-950 dark:text-orange-400 text-xs px-2.5 py-1 rounded-full font-bold">{{ category.items.count }} Items</span>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                {% for item in category.items.all %}
+                <div class="bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700 overflow-hidden shadow-sm hover:shadow-md transition duration-200 flex flex-col justify-between">
+                    <div>
+                        <div class="w-full h-44 bg-gray-100 dark:bg-slate-900 relative">
+                            {% if item.image %}
+                                <img src="{{ item.image.url }}" alt="{{ item.name }}" class="w-full h-full object-cover">
+                            {% else %}
+                                <div class="w-full h-full flex items-center justify-center text-gray-400 font-bold text-xs tracking-wider">ORDERNA CULINARY</div>
+                            {% endif %}
+                        </div>
+                        <div class="p-4">
+                            <h4 class="font-extrabold text-gray-900 dark:text-white text-lg tracking-tight">{{ item.name }}</h4>
+                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 min-h-[48px]">{{ item.description }}</p>
+                        </div>
+                    </div>
+                    
+                    <div class="p-4 pt-0 border-t border-gray-50 dark:border-slate-700/50 mt-auto flex items-center justify-between">
+                        <span class="text-orange-600 dark:text-orange-400 font-black text-base">KES {{ item.price }}</span>
+                        {% if item.is_available %}
+                            <button 
+                                type="button"
+                                onclick="addToCart('{{ item.name|escapejs }}', {{ item.price }})"
+                                class="bg-orange-500 hover:bg-orange-600 active:scale-95 transition text-white px-4 py-2 rounded-xl font-bold text-xs tracking-wide shadow-sm"
+                            >
+                                ADD TO BASKET
+                            </button>
+                        {% else %}
+                            <span class="text-xs font-bold text-gray-400 dark:text-gray-600 uppercase border border-gray-200 dark:border-slate-700 px-3 py-1.5 rounded-lg">Out of Stock</span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="lg:col-span-1">
+        <div class="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-2xl shadow-xl sticky top-6 p-6 overflow-hidden">
+            
+            <div class="flex border-b border-gray-100 dark:border-slate-700 pb-4 mb-6 space-x-2">
+                <button type="button" id="tab-cart-btn" onclick="switchWidgetTab('cart')" class="flex-1 py-2 text-center rounded-xl text-xs font-black bg-orange-500 text-white transition">
+                    YOUR BASKET
+                </button>
+                <button type="button" id="tab-book-btn" onclick="switchWidgetTab('book')" class="flex-1 py-2 text-center rounded-xl text-xs font-black bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-300 transition">
+                    TABLE BOOKING
+                </button>
+            </div>
+
+            <div id="tab-cart-panel" class="block space-y-4">
+                <div id="cart-item-list" class="space-y-3 max-h-64 overflow-y-auto pr-1 text-sm text-gray-600 dark:text-gray-300">
+                    <p id="cart-empty-state" class="text-gray-400 dark:text-gray-500 italic text-center py-8">Your cart is empty.</p>
+                </div>
+                
+                <div class="border-t border-gray-100 dark:border-slate-700 pt-4 mt-4">
+                    <div class="flex justify-between font-black text-xl text-gray-900 dark:text-white mb-6">
+                        <span>Total Summary:</span>
+                        <span>KES <span id="cart-total-value">0</span></span>
+                    </div>
+                    <button 
+                        type="button"
+                        onclick="dispatchWhatsAppOrder()"
+                        class="w-full bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white font-black py-3.5 rounded-xl text-sm transition tracking-wider shadow-md"
+                    >
+                        CHECKOUT VIA WHATSAPP
+                    </button>
+                </div>
+            </div>
+
+            <div id="tab-book-panel" class="hidden space-y-4">
+                <div id="active-booking-container" class="hidden mb-6 bg-orange-50 dark:bg-slate-900 p-4 border border-orange-200 dark:border-slate-700 rounded-xl">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-xs font-black uppercase text-orange-600 dark:text-orange-400 tracking-wider">Your Active Booking</span>
+                        <span class="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded">Saved</span>
+                    </div>
+                    <div class="text-xs text-gray-700 dark:text-slate-300 space-y-1">
+                        <p><strong>Guest Host:</strong> <span id="lbl-bk-name"></span></p>
+                        <p><strong>Contact Info:</strong> <span id="lbl-bk-phone"></span></p>
+                        <p><strong>Party Size:</strong> <span id="lbl-bk-guests"></span> Person(s)</p>
+                        <p><strong>Arrival Time:</strong> <span id="lbl-bk-time"></span></p>
+                    </div>
+                    <div class="flex space-x-2 mt-4">
+                        <button type="button" onclick="editActiveBooking()" class="flex-1 py-1.5 text-center bg-gray-200 dark:bg-slate-700 rounded-md font-bold text-[11px] text-gray-800 dark:text-white">
+                            Edit Booking
+                        </button>
+                        <button type="button" onclick="clearActiveBooking()" class="flex-1 py-1.5 text-center bg-red-100 text-red-700 rounded-md font-bold text-[11px]">
+                            Cancel Trip
+                        </button>
+                    </div>
+                </div>
+
+                <form id="booking-entry-form" onsubmit="handleLocalBookingSubmit(event)" class="space-y-3 text-xs">
+                    <div>
+                        <label class="block font-bold text-gray-700 dark:text-gray-300 mb-1">Full Name</label>
+                        <input id="form-bk-name" type="text" required class="w-full p-2.5 bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-lg text-gray-900 dark:text-white focus:outline-orange-500">
+                    </div>
+                    <div>
+                        <label class="block font-bold text-gray-700 dark:text-gray-300 mb-1">Phone Contact (+254...)</label>
+                        <input id="form-bk-phone" type="text" required placeholder="e.g. 0712345678" class="w-full p-2.5 bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-lg text-gray-900 dark:text-white focus:outline-orange-500">
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block font-bold text-gray-700 dark:text-gray-300 mb-1">Guests</label>
+                            <input id="form-bk-guests" type="number" min="1" required class="w-full p-2.5 bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-lg text-gray-900 dark:text-white focus:outline-orange-500">
+                        </div>
+                        <div>
+                            <label class="block font-bold text-gray-700 dark:text-gray-300 mb-1">Time</label>
+                            <input id="form-bk-time" type="time" required class="w-full p-2.5 bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-lg text-gray-900 dark:text-white focus:outline-orange-500">
+                        </div>
+                    </div>
+                    <button type="submit" class="w-full bg-orange-500 hover:bg-orange-600 text-white font-black py-3 rounded-xl text-xs tracking-wider transition mt-4 shadow-md">
+                        SUBMIT RESERVATION
+                    </button>
+                </form>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<script>
+    let userCart = [];
+    let grandTotal = 0;
+    let currentSlide = 0;
+
+    document.addEventListener("DOMContentLoaded", () => {
+        renderBookingTicketUI();
+    });
+
+    // Auto Slider Engine (Reads dynamic collection count)
+    const totalSlides = {{ slides.count|default:1 }};
+    if (totalSlides > 1) {
+        setInterval(() => {
+            const slider = document.getElementById('slider-container');
+            if (slider) {
+                currentSlide = (currentSlide + 1) % totalSlides; 
+                slider.style.transform = `translateX(-${currentSlide * 100}%)`;
+            }
+        }, 4000);
+    }
+
+    function toggleDarkMode() {
+        document.documentElement.classList.toggle('dark');
+        const isDark = document.documentElement.classList.contains('dark');
+        document.getElementById('theme-toggle').innerText = isDark ? "Light Mode" : "Night Mode";
+    }
+
+    function switchWidgetTab(targetTab) {
+        const cartBtn = document.getElementById('tab-cart-btn');
+        const bookBtn = document.getElementById('tab-book-btn');
+        const cartPanel = document.getElementById('tab-cart-panel');
+        const bookPanel = document.getElementById('tab-book-panel');
+
+        if(targetTab === 'cart') {
+            cartBtn.className = "flex-1 py-2 text-center rounded-xl text-xs font-black bg-orange-500 text-white transition";
+            bookBtn.className = "flex-1 py-2 text-center rounded-xl text-xs font-black bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-300 transition";
+            cartPanel.classList.replace('hidden', 'block');
+            bookPanel.classList.replace('block', 'hidden');
+        } else {
+            bookBtn.className = "flex-1 py-2 text-center rounded-xl text-xs font-black bg-orange-500 text-white transition";
+            cartBtn.className = "flex-1 py-2 text-center rounded-xl text-xs font-black bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-300 transition";
+            bookPanel.classList.replace('hidden', 'block');
+            cartPanel.classList.replace('block', 'hidden');
+        }
+    }
+
+    function addToCart(itemName, itemPrice) {
+        const parsedPrice = parseInt(itemPrice);
+        userCart.push({ name: itemName, price: parsedPrice });
+        grandTotal += parsedPrice;
+        refreshCartDisplay();
+    }
+
+    function removeCartItem(index) {
+        grandTotal -= userCart[index].price;
+        userCart.splice(index, 1);
+        refreshCartDisplay();
+    }
+
+    function refreshCartDisplay() {
+        const listContainer = document.getElementById('cart-item-list');
+        const totalContainer = document.getElementById('cart-total-value');
+        const emptyPlaceholder = document.getElementById('cart-empty-state');
+        
+        if (userCart.length > 0) {
+            emptyPlaceholder.style.display = 'none';
+        } else {
+            emptyPlaceholder.style.display = 'block';
+        }
+
+        listContainer.innerHTML = '';
+        userCart.forEach((item, index) => {
+            const node = document.createElement('div');
+            node.className = 'flex justify-between items-center border-b border-gray-50 dark:border-slate-700/50 pb-2 text-gray-800 dark:text-slate-200';
+            node.innerHTML = `
+                <div class="flex flex-col">
+                    <span class="font-bold">${item.name}</span>
+                    <span class="text-xs text-orange-500 font-extrabold">KES ${item.price}</span>
+                </div>
+                <button type="button" onclick="removeCartItem(${index})" class="text-red-500 font-bold hover:text-red-600 text-[11px] uppercase tracking-wider pl-2 transition">
+                    Remove
+                </button>
+            `;
+            listContainer.appendChild(node);
+        });
+
+        totalContainer.innerText = grandTotal.toLocaleString();
+    }
+
+    function dispatchWhatsAppOrder() {
+        if (userCart.length === 0) {
+            alert("Your basket is empty. Please add items to order.");
+            return;
+        }
+
+        // SWAP THIS PLACEHOLDER WITH YOUR GENUINE MOBILE WHATSAPP NUMBER
+        const realVendorMobile = "254700000000"; 
+        
+        let messagePayload = "*ORDENA LUXURY DIGITAL DISPATCH*%0A";
+        messagePayload += "===========================%0A";
+        userCart.forEach((item, index) => {
+            messagePayload += `${index + 1}. ${item.name} - KES ${item.price}%0A`;
+        });
+        messagePayload += "===========================%0A";
+        messagePayload += `*GRAND TOTAL: KES ${grandTotal}*%0A%0A`;
+        messagePayload += "Please confirm availability and preparation time.";
+
+        const completeGatewayUrl = `https://wa.me/${realVendorMobile}?text=${messagePayload}`;
+        window.open(completeGatewayUrl, '_blank');
+    }
+
+    function handleLocalBookingSubmit(event) {
+        event.preventDefault();
+        const bookingData = {
+            name: document.getElementById('form-bk-name').value,
+            phone: document.getElementById('form-bk-phone').value,
+            guests: document.getElementById('form-bk-guests').value,
+            time: document.getElementById('form-bk-time').value
+        };
+        localStorage.setItem('orderna_booking', JSON.stringify(bookingData));
+        renderBookingTicketUI();
+    }
+
+    function renderBookingTicketUI() {
+        const savedData = localStorage.getItem('orderna_booking');
+        const formBlock = document.getElementById('booking-entry-form');
+        const ticketBlock = document.getElementById('active-booking-container');
+
+        if (savedData) {
+            const data = JSON.parse(savedData);
+            document.getElementById('lbl-bk-name').innerText = data.name;
+            document.getElementById('lbl-bk-phone').innerText = data.phone;
+            document.getElementById('lbl-bk-guests').innerText = data.guests;
+            document.getElementById('lbl-bk-time').innerText = data.time;
+            formBlock.classList.add('hidden');
+            ticketBlock.classList.remove('hidden');
+        } else {
+            formBlock.classList.remove('hidden');
+            ticketBlock.classList.add('hidden');
+        }
+    }
+
+    function editActiveBooking() {
+        const savedData = localStorage.getItem('orderna_booking');
+        if (savedData) {
+            const data = JSON.parse(savedData);
+            document.getElementById('form-bk-name').value = data.name;
+            document.getElementById('form-bk-phone').value = data.phone;
+            document.getElementById('form-bk-guests').value = data.guests;
+            document.getElementById('form-bk-time').value = data.time;
+            localStorage.removeItem('orderna_booking');
+            renderBookingTicketUI();
+        }
+    }
+
+    function clearActiveBooking() {
+        if(confirm("Are you sure you want to cancel this reservation?")) {
+            localStorage.removeItem('orderna_booking');
+            renderBookingTicketUI();
+        }
+    }
+</script>
+{% endblock %}
