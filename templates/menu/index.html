@@ -7,7 +7,7 @@
     </button>
 </div>
 
-<div class="relative w-full h-64 md:h-80 rounded-2xl overflow-hidden mb-10 shadow-lg border border-gray-100 dark:border-slate-800">
+<div class="relative w-full h-80 md:h-[450px]] rounded-2xl overflow-hidden mb-10 shadow-lg border border-gray-100 dark:border-slate-800">
     <div id="slider-container" class="flex w-full h-full transition-transform duration-700 ease-in-out">
         {% for slide in slides %}
             <div class="w-full h-full flex-shrink-0 bg-cover bg-center flex items-end p-8" style="background-image: linear-gradient(to top, rgba(0,0,0,0.8), rgba(0,0,0,0.2)), url('{{ slide.image.url }}');">
@@ -53,7 +53,7 @@
                         {% if item.is_available %}
                             <button 
                                 type="button"
-                                onclick="addToCart('{{ item.name|escapejs }}', {{ item.price }})"
+                                onclick="addToCart('{{ item.name|escapejs }}', '{{ item.price|floatformat:0 }}')"
                                 class="bg-orange-500 hover:bg-orange-600 active:scale-95 transition text-white px-4 py-2 rounded-xl font-bold text-xs tracking-wide shadow-sm"
                             >
                                 ADD TO BASKET
@@ -82,12 +82,12 @@
             </div>
 
             <div id="tab-cart-panel" class="block space-y-4">
-                <div id="cart-item-list" class="space-y-3 max-h-64 overflow-y-auto pr-1 text-sm text-gray-600 dark:text-gray-300">
-                    <p id="cart-empty-state" class="text-gray-400 dark:text-gray-500 italic text-center py-8">Your cart is empty.</p>
+                <div id="cart-item-list" class="grid grid-cols-1 gap-3 max-h-80 overflow-y-auto pr-1 text-sm min-h-[60px]">
+                    <p id="cart-empty-state" class="text-gray-400 dark:text-gray-500 italic text-center py-4">Your basket is empty.</p>
                 </div>
                 
-                <div class="border-t border-gray-100 dark:border-slate-700 pt-4 mt-4">
-                    <div class="flex justify-between font-black text-xl text-gray-900 dark:text-white mb-6">
+                <div class="border-t border-gray-100 dark:border-slate-700/60 pt-4 mt-4">
+                    <div class="flex justify-between font-black text-lg text-gray-900 dark:text-white mb-4">
                         <span>Total Summary:</span>
                         <span>KES <span id="cart-total-value">0</span></span>
                     </div>
@@ -153,15 +153,17 @@
 </div>
 
 <script>
+    // 1. GLOBAL INITIALIZATIONS
     let userCart = [];
     let grandTotal = 0;
     let currentSlide = 0;
 
     document.addEventListener("DOMContentLoaded", () => {
         renderBookingTicketUI();
+        refreshCartDisplay();
     });
 
-    // Auto Slider Engine (Reads dynamic collection count)
+    // 2. AUTO SLIDER ENGINE
     const totalSlides = {{ slides.count|default:1 }};
     if (totalSlides > 1) {
         setInterval(() => {
@@ -173,19 +175,26 @@
         }, 4000);
     }
 
+    // 3. DARK MODE ENGINE
     function toggleDarkMode() {
         document.documentElement.classList.toggle('dark');
         const isDark = document.documentElement.classList.contains('dark');
-        document.getElementById('theme-toggle').innerText = isDark ? "Light Mode" : "Night Mode";
+        const themeToggleBtn = document.getElementById('theme-toggle');
+        if (themeToggleBtn) {
+            themeToggleBtn.innerText = isDark ? "Light Mode" : "Night Mode";
+        }
     }
 
+    // 4. WIDGET TAB MANAGER
     function switchWidgetTab(targetTab) {
         const cartBtn = document.getElementById('tab-cart-btn');
         const bookBtn = document.getElementById('tab-book-btn');
         const cartPanel = document.getElementById('tab-cart-panel');
         const bookPanel = document.getElementById('tab-book-panel');
 
-        if(targetTab === 'cart') {
+        if (!cartBtn || !bookBtn || !cartPanel || !bookPanel) return;
+
+        if (targetTab === 'cart') {
             cartBtn.className = "flex-1 py-2 text-center rounded-xl text-xs font-black bg-orange-500 text-white transition";
             bookBtn.className = "flex-1 py-2 text-center rounded-xl text-xs font-black bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-300 transition";
             cartPanel.classList.replace('hidden', 'block');
@@ -198,16 +207,33 @@
         }
     }
 
+    // 5. QUANTITY-SUPPORTED CART LOGIC
     function addToCart(itemName, itemPrice) {
         const parsedPrice = parseInt(itemPrice);
-        userCart.push({ name: itemName, price: parsedPrice });
+        const existingItem = userCart.find(item => item.name === itemName);
+        
+        if (existingItem) {
+            existingItem.qty += 1;
+        } else {
+            userCart.push({ name: itemName, price: parsedPrice, qty: 1 });
+        }
+        
         grandTotal += parsedPrice;
         refreshCartDisplay();
     }
 
     function removeCartItem(index) {
-        grandTotal -= userCart[index].price;
-        userCart.splice(index, 1);
+        const item = userCart[index];
+        if (!item) return;
+        
+        if (item.qty > 1) {
+            item.qty -= 1;
+            grandTotal -= item.price;
+        } else {
+            grandTotal -= item.price;
+            userCart.splice(index, 1);
+        }
+        
         refreshCartDisplay();
     }
 
@@ -216,23 +242,39 @@
         const totalContainer = document.getElementById('cart-total-value');
         const emptyPlaceholder = document.getElementById('cart-empty-state');
         
+        if (!listContainer || !totalContainer) return;
+
         if (userCart.length > 0) {
-            emptyPlaceholder.style.display = 'none';
+            if (emptyPlaceholder) emptyPlaceholder.style.display = 'none';
         } else {
-            emptyPlaceholder.style.display = 'block';
+            if (emptyPlaceholder) emptyPlaceholder.style.display = 'block';
         }
 
         listContainer.innerHTML = '';
+        if (userCart.length === 0 && emptyPlaceholder) {
+            listContainer.appendChild(emptyPlaceholder);
+        }
+
         userCart.forEach((item, index) => {
             const node = document.createElement('div');
-            node.className = 'flex justify-between items-center border-b border-gray-50 dark:border-slate-700/50 pb-2 text-gray-800 dark:text-slate-200';
+            node.className = "w-full flex justify-between items-center border-b border-gray-100 dark:border-slate-700/50 pb-3 text-gray-800 dark:text-slate-200 mt-2";
+            
+            const combinedLineTotal = item.price * item.qty;
+
             node.innerHTML = `
                 <div class="flex flex-col">
-                    <span class="font-bold">${item.name}</span>
-                    <span class="text-xs text-orange-500 font-extrabold">KES ${item.price}</span>
+                    <div class="flex items-center space-x-2">
+                        <span class="font-bold text-gray-900 dark:text-white text-base capitalize">${item.name}</span>
+                        <span class="bg-orange-100 text-orange-600 dark:bg-orange-950 dark:text-orange-400 text-xs font-black px-2 py-0.5 rounded-md">x${item.qty}</span>
+                    </div>
+                    <span class="text-xs text-orange-500 font-extrabold mt-0.5">KES ${combinedLineTotal.toLocaleString()}</span>
                 </div>
-                <button type="button" onclick="removeCartItem(${index})" class="text-red-500 font-bold hover:text-red-600 text-[11px] uppercase tracking-wider pl-2 transition">
-                    Remove
+                <button 
+                    type="button" 
+                    onclick="removeCartItem(${index})" 
+                    class="text-red-500 font-bold hover:text-red-700 text-[11px] uppercase tracking-wider transition-colors p-1 cursor-pointer"
+                >
+                    ${item.qty > 1 ? 'Reduce' : 'Remove'}
                 </button>
             `;
             listContainer.appendChild(node);
@@ -241,44 +283,71 @@
         totalContainer.innerText = grandTotal.toLocaleString();
     }
 
+    // 6. WHATSAPP DISPATCH GATEWAY
     function dispatchWhatsAppOrder() {
         if (userCart.length === 0) {
             alert("Your basket is empty. Please add items to order.");
             return;
         }
 
-        // SWAP THIS PLACEHOLDER WITH YOUR GENUINE MOBILE WHATSAPP NUMBER
-        const realVendorMobile = "254700000000"; 
+        const realVendorMobile = "254743173996"; 
         
-        let messagePayload = "*ORDENA LUXURY DIGITAL DISPATCH*%0A";
+        let messagePayload = "*%F0%9F%8D%B2 ORDRENA DIGITAL INBOUND DISPATCH*%0A";
         messagePayload += "===========================%0A";
         userCart.forEach((item, index) => {
-            messagePayload += `${index + 1}. ${item.name} - KES ${item.price}%0A`;
+            const lineCost = item.price * item.qty;
+            messagePayload += `${index + 1}. ${item.name} (x${item.qty}) - KES ${lineCost}%0A`;
         });
         messagePayload += "===========================%0A";
-        messagePayload += `*GRAND TOTAL: KES ${grandTotal}*%0A%0A`;
-        messagePayload += "Please confirm availability and preparation time.";
+        messagePayload += `*%F0%9F%92%B3 GRAND TOTAL: KES ${grandTotal.toLocaleString()}*%0A%0A`;
+        messagePayload += "Please process this request and reply with food preparation timelines.";
 
         const completeGatewayUrl = `https://wa.me/${realVendorMobile}?text=${messagePayload}`;
         window.open(completeGatewayUrl, '_blank');
     }
 
+    // 7. RELATIONAL BACKEND BOOKING CONTROLLERS
     function handleLocalBookingSubmit(event) {
         event.preventDefault();
+        
         const bookingData = {
             name: document.getElementById('form-bk-name').value,
             phone: document.getElementById('form-bk-phone').value,
             guests: document.getElementById('form-bk-guests').value,
             time: document.getElementById('form-bk-time').value
         };
-        localStorage.setItem('orderna_booking', JSON.stringify(bookingData));
-        renderBookingTicketUI();
+
+        fetch('/api/book-table/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(bookingData)
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.status === 'success') {
+                localStorage.setItem('orderna_booking', JSON.stringify(bookingData));
+                renderBookingTicketUI();
+                alert("Reservation secured! See you then.");
+            } else {
+                alert("Database Error: " + result.message);
+            }
+        })
+        .catch(error => {
+            console.error("Transmission breakdown:", error);
+            alert("Could not reach reservation servers. Saved to browser locally instead.");
+            localStorage.setItem('orderna_booking', JSON.stringify(bookingData));
+            renderBookingTicketUI();
+        });
     }
 
     function renderBookingTicketUI() {
         const savedData = localStorage.getItem('orderna_booking');
         const formBlock = document.getElementById('booking-entry-form');
         const ticketBlock = document.getElementById('active-booking-container');
+
+        if (!formBlock || !ticketBlock) return;
 
         if (savedData) {
             const data = JSON.parse(savedData);
@@ -302,13 +371,14 @@
             document.getElementById('form-bk-phone').value = data.phone;
             document.getElementById('form-bk-guests').value = data.guests;
             document.getElementById('form-bk-time').value = data.time;
+            
             localStorage.removeItem('orderna_booking');
             renderBookingTicketUI();
         }
     }
 
     function clearActiveBooking() {
-        if(confirm("Are you sure you want to cancel this reservation?")) {
+        if (confirm("Are you sure you want to cancel this reservation?")) {
             localStorage.removeItem('orderna_booking');
             renderBookingTicketUI();
         }
